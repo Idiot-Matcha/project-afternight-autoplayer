@@ -356,16 +356,16 @@ RunService.RenderStepped:Connect(function(dt)
             if pressed[i] then
                 local doRelease = false
                 if downKind[i] == "hold" then
-                    local newHead = false
+                    local succ = false
                     for _, ln in ipairs(laneNotes[i]) do
-                        if ln.z.Y > cfg.holdH and not ln.used and ln.addr ~= pressAddr[i] and ln.vy > 50 then
-                            local hd = ln.p.Y - lineY
+                        if not ln.used and ln.addr ~= pressAddr[i] and ln.vy > 50 then
+                            local hd = ln.z.Y > cfg.holdH and (ln.p.Y - lineY) or (ln.yE - lineY)
                             if hd >= lowerB and hd <= pdN then
-                                newHead = true
+                                succ = true
                             end
                         end
                     end
-                    doRelease = newHead or (not holdKeep and (not holdUntil[i] or tick() > holdUntil[i]))
+                    doRelease = succ or (not holdKeep and (not holdUntil[i] or tick() > holdUntil[i]))
                 elseif downKind[i] == "tap" then
                     local ad = pressAddr[i]
                     local heldD = nil
@@ -628,4 +628,4 @@ task.spawn(function()
     end
 end)
 
-print("Autoplayer42 loaded - double-sustain fix: holds get the successor-release (fresh edge for a second same-lane sustain). Rejoin first to clear old versions")
+print("Autoplayer43 loaded - sustain fix: holds release for a successor tap or hold (taps after sustains no longer blocked). Rejoin first to clear old versions")
