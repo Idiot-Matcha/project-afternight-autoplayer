@@ -1,4 +1,4 @@
-﻿-- Project Afternight autoplayer (Matcha)
+-- Project Afternight autoplayer (Matcha)
 -- Tab: Autoplayer21 | Toggle Enabled, then play. ms slider = press ms early.
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
