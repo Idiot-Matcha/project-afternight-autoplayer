@@ -85,6 +85,7 @@ local function releaseAll()
     downKind = {}
     pressAddr = {}
     holdTail = {}
+    holdUntil = {}
     lastPressed = {}
     lastRel = {}
     pressX = {}
@@ -375,7 +376,6 @@ RunService.RenderStepped:Connect(function(dt)
             if pressed[i] then
                 local doRelease = false
                 if downKind[i] == "hold" then
-                    local succ = false
                     local chainEnd = holdTail[i]
                     for _, ln in ipairs(laneNotes[i]) do
                         if ln.addr == pressAddr[i] then chainEnd = ln.p.Y + ln.z.Y end
@@ -393,20 +393,8 @@ RunService.RenderStepped:Connect(function(dt)
                         end
                         holdUntil[i] = math.max(holdUntil[i] or 0, tick() + math.max(0, chainEnd - lineY) / math.max(speed, 50) + 0.15)
                     end
-                    local succPd = math.clamp(speed * (cfg.ms + cfg.comp) / 1000, 6, 250)
-                    for _, ln in ipairs(laneNotes[i]) do
-                        if not ln.used and ln.addr ~= pressAddr[i] and ln.vy > 50 then
-                            local isH = ln.z.Y > cfg.holdH
-                            local hd = isH and (ln.p.Y - lineY) or (ln.yE - lineY)
-                            if hd >= lowerB and hd <= succPd then
-                                if (not chainEnd) or ln.p.Y > chainEnd + 30 then
-                                    succ = true
-                                end
-                            end
-                        end
-                    end
-                    doRelease = succ or (not holdKeep and (not holdUntil[i] or tick() > holdUntil[i]))
-                    if cfg.debug and doRelease then print(("REL-HOLD lane=%d key=%s succ=%s hk=%s"):format(i, key, tostring(succ), tostring(holdKeep))) end
+                    doRelease = not holdKeep and (not holdUntil[i] or tick() > holdUntil[i])
+                    if cfg.debug and doRelease then print(("REL-HOLD lane=%d key=%s hk=%s"):format(i, key, tostring(holdKeep))) end
                 elseif downKind[i] == "tap" then
                     local ad = pressAddr[i]
                     local heldD = nil
@@ -676,4 +664,4 @@ task.spawn(function()
     end
 end)
 
-print("Autoplayer48 loaded - crash fix: succPd defined in the hold release branch (was nil -> Matcha:400 spam, froze lane releases). Rejoin first to clear old versions")
+print("Autoplayer49 loaded - sustain fix 3: successor-release REMOVED (it released holds early when the head note entered the window; Psych engines auto-hit notes in a held lane, so holds now release only at their tail). Rejoin first to clear old versions")
