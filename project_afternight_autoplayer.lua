@@ -376,29 +376,36 @@ RunService.RenderStepped:Connect(function(dt)
                 local doRelease = false
                 if downKind[i] == "hold" then
                     local succ = false
-                    local liveTail = holdTail[i]
+                    local chainEnd = holdTail[i]
                     for _, ln in ipairs(laneNotes[i]) do
-                        if ln.addr == pressAddr[i] then
-                            liveTail = ln.p.Y + ln.z.Y
-                            break
+                        if ln.addr == pressAddr[i] then chainEnd = ln.p.Y + ln.z.Y end
+                    end
+                    local changed = true
+                    while changed do
+                        changed = false
+                        for _, ln in ipairs(laneNotes[i]) do
+                            if ln.z.Y > cfg.holdH and ln.p.Y <= chainEnd + 12 then
+                                local t = ln.p.Y + ln.z.Y
+                                if t > chainEnd then chainEnd = t; changed = true end
+                            end
                         end
                     end
-                    if liveTail then
-                        holdUntil[i] = math.max(holdUntil[i] or 0, tick() + math.max(0, liveTail - lineY) / math.max(speed, 50) + 0.15)
+                    if chainEnd then
+                        holdUntil[i] = math.max(holdUntil[i] or 0, tick() + math.max(0, chainEnd - lineY) / math.max(speed, 50) + 0.15)
                     end
                     for _, ln in ipairs(laneNotes[i]) do
                         if not ln.used and ln.addr ~= pressAddr[i] and ln.vy > 50 then
                             local isH = ln.z.Y > cfg.holdH
                             local hd = isH and (ln.p.Y - lineY) or (ln.yE - lineY)
                             if hd >= lowerB and hd <= pdN then
-                                local headY = isH and ln.p.Y or ln.yE
-                                if (not liveTail) or headY > liveTail + 30 then
+                                if (not chainEnd) or ln.p.Y > chainEnd + 30 then
                                     succ = true
                                 end
                             end
                         end
                     end
                     doRelease = succ or (not holdKeep and (not holdUntil[i] or tick() > holdUntil[i]))
+                    if cfg.debug and doRelease then print(("REL-HOLD lane=%d key=%s succ=%s hk=%s"):format(i, key, tostring(succ), tostring(holdKeep))) end
                 elseif downKind[i] == "tap" then
                     local ad = pressAddr[i]
                     local heldD = nil
@@ -668,4 +675,4 @@ task.spawn(function()
     end
 end)
 
-print("Autoplayer46 loaded - sustain end fix: chained pieces share the tail window, holdUntil tracks the live tail, releases only past the real end. Rejoin first to clear old versions")
+print("Autoplayer47 loaded - sustain end fix 2: chunk chain extension + raw-head successor check (tail caps no longer release early). Rejoin first to clear old versions")
