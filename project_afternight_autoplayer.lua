@@ -380,24 +380,25 @@ RunService.RenderStepped:Connect(function(dt)
                     for _, ln in ipairs(laneNotes[i]) do
                         if ln.addr == pressAddr[i] then chainEnd = ln.p.Y + ln.z.Y end
                     end
-                    local changed = true
-                    while changed do
-                        changed = false
-                        for _, ln in ipairs(laneNotes[i]) do
-                            if ln.z.Y > cfg.holdH and ln.p.Y <= chainEnd + 12 then
-                                local t = ln.p.Y + ln.z.Y
-                                if t > chainEnd then chainEnd = t; changed = true end
+                    if chainEnd then
+                        local changed = true
+                        while changed do
+                            changed = false
+                            for _, ln in ipairs(laneNotes[i]) do
+                                if ln.z.Y > cfg.holdH and ln.p.Y <= chainEnd + 12 then
+                                    local t = ln.p.Y + ln.z.Y
+                                    if t > chainEnd then chainEnd = t; changed = true end
+                                end
                             end
                         end
-                    end
-                    if chainEnd then
                         holdUntil[i] = math.max(holdUntil[i] or 0, tick() + math.max(0, chainEnd - lineY) / math.max(speed, 50) + 0.15)
                     end
+                    local succPd = math.clamp(speed * (cfg.ms + cfg.comp) / 1000, 6, 250)
                     for _, ln in ipairs(laneNotes[i]) do
                         if not ln.used and ln.addr ~= pressAddr[i] and ln.vy > 50 then
                             local isH = ln.z.Y > cfg.holdH
                             local hd = isH and (ln.p.Y - lineY) or (ln.yE - lineY)
-                            if hd >= lowerB and hd <= pdN then
+                            if hd >= lowerB and hd <= succPd then
                                 if (not chainEnd) or ln.p.Y > chainEnd + 30 then
                                     succ = true
                                 end
@@ -675,4 +676,4 @@ task.spawn(function()
     end
 end)
 
-print("Autoplayer47 loaded - sustain end fix 2: chunk chain extension + raw-head successor check (tail caps no longer release early). Rejoin first to clear old versions")
+print("Autoplayer48 loaded - crash fix: succPd defined in the hold release branch (was nil -> Matcha:400 spam, froze lane releases). Rejoin first to clear old versions")
