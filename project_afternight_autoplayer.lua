@@ -20,6 +20,7 @@ local downKind = {}
 local pressAddr = {}
 local holdUntil = {}
 local holdTail = {}
+local pressFrame = {}
 local lastPressed = {}
 local pressX = {}
 local pressY = {}
@@ -86,6 +87,7 @@ local function releaseAll()
     pressAddr = {}
     holdTail = {}
     holdUntil = {}
+    pressFrame = {}
     lastPressed = {}
     lastRel = {}
     pressX = {}
@@ -375,28 +377,11 @@ RunService.RenderStepped:Connect(function(dt)
             end
             if pressed[i] then
                 local doRelease = false
-                if downKind[i] == "hold" then
-                    local chainEnd = holdTail[i]
-                    for _, ln in ipairs(laneNotes[i]) do
-                        if ln.addr == pressAddr[i] then chainEnd = ln.p.Y + ln.z.Y end
-                    end
-                    if chainEnd then
-                        local changed = true
-                        while changed do
-                            changed = false
-                            for _, ln in ipairs(laneNotes[i]) do
-                                if ln.z.Y > cfg.holdH and ln.p.Y <= chainEnd + 12 then
-                                    local t = ln.p.Y + ln.z.Y
-                                    if t > chainEnd then chainEnd = t; changed = true end
-                                end
-                            end
-                        end
-                        holdUntil[i] = math.max(holdUntil[i] or 0, tick() + math.max(0, chainEnd - lineY) / math.max(speed, 50) + 0.15)
-                    end
-                    doRelease = not holdKeep and (not holdUntil[i] or tick() > holdUntil[i])
-                    if cfg.debug and doRelease then print(("REL-HOLD lane=%d key=%s hk=%s"):format(i, key, tostring(holdKeep))) end
-                elseif downKind[i] == "tap" then
-                    local ad = pressAddr[i]
+                local ad = pressAddr[i]
+                if ad and frameCnt > (pressFrame[i] or 0) + 1 then
+                    doRelease = true
+                end
+                if not doRelease then
                     local heldD = nil
                     local stillThere = false
                     for _, ln in ipairs(laneNotes[i]) do
@@ -404,17 +389,15 @@ RunService.RenderStepped:Connect(function(dt)
                     end
                     if not stillThere then
                         doRelease = true
-                    elseif heldD then
-                        if heldD < -15 or heldD > pressDist + cfg.slack then
-                            doRelease = true
-                        else
-                            for _, ln in ipairs(laneNotes[i]) do
-                                if ln.addr ~= ad and ln.vy > 50 then
-                                    local d = ln.z.Y > cfg.holdH and (ln.p.Y - lineY) or (ln.c.Y - lineY)
-                                    if d <= pressDist + math.max(40, speed / 60) and d > heldD + 2 then
-                                        doRelease = true
-                                        break
-                                    end
+                    elseif heldD and (heldD < -15 or heldD > pressDist + cfg.slack) then
+                        doRelease = true
+                    else
+                        for _, ln in ipairs(laneNotes[i]) do
+                            if ln.addr ~= ad and ln.vy > 50 then
+                                local d = (ln.z.Y > cfg.holdH and (ln.yE - ln.z.Y / 2) or ln.yE) - lineY
+                                if d <= pressDist + math.max(40, speed / 60) then
+                                    doRelease = true
+                                    break
                                 end
                             end
                         end
@@ -441,7 +424,7 @@ RunService.RenderStepped:Connect(function(dt)
                 for _, ln in ipairs(laneNotes[i]) do
                     if ln.addr ~= lastPressed[i] and ln.vy > 50 and (ln.un <= 0 or ln.z.Y > cfg.holdH) and not ln.used then
                         local isHold = ln.z.Y > cfg.holdH
-                        local d = isHold and (ln.p.Y - lineY) or (ln.yE - lineY)
+                        local d = isHold and ((ln.yE - ln.z.Y / 2) - lineY) or (ln.yE - lineY)
                         local pdN = math.clamp(ln.vy * (cfg.ms + cfg.comp) / 1000, 6, 250)
                         if d >= lowerB and d <= pdN and d < candD then
                             cand, candD, candKind = ln, d, isHold and "hold" or "tap"
@@ -453,12 +436,9 @@ RunService.RenderStepped:Connect(function(dt)
                     pressed[i] = true
                     downKind[i] = candKind
                     pressAddr[i] = cand.addr
+                    pressFrame[i] = frameCnt
                     pressX[i] = cand.c.X
                     pressY[i] = cand.c.Y
-                    if candKind == "hold" then
-                        holdUntil[i] = tick() + math.max(0, cand.p.Y + cand.z.Y - lineY) / math.max(cand.vy, 50) + 0.15
-                        holdTail[i] = cand.p.Y + cand.z.Y
-                    end
                     if cand.addr then
                         local tr = noteTrack[cand.addr]
                         if tr then tr.used = true end
@@ -664,4 +644,4 @@ task.spawn(function()
     end
 end)
 
-print("Autoplayer49 loaded - sustain fix 3: successor-release REMOVED (it released holds early when the head note entered the window; Psych engines auto-hit notes in a held lane, so holds now release only at their tail). Rejoin first to clear old versions")
+print("Autoplayer50 loaded - EDGE MODEL: every note (taps AND sustains) gets one clean press at its head, key released 2 frames later - no holding. The 16:36:49 log proved the engine does NOT auto-hit notes in held lanes (5 breaks while 3 keys were down). Rejoin first to clear old versions")
