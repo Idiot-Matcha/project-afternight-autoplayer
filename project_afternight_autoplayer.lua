@@ -374,11 +374,18 @@ RunService.RenderStepped:Connect(function(dt)
                 local doRelease = false
                 if downKind[i] == "hold" then
                     local succ = false
+                    local heldTail = nil
+                    for _, ln in ipairs(laneNotes[i]) do
+                        if ln.addr == pressAddr[i] then heldTail = ln.p.Y + ln.z.Y end
+                    end
                     for _, ln in ipairs(laneNotes[i]) do
                         if not ln.used and ln.addr ~= pressAddr[i] and ln.vy > 50 then
-                            local hd = ln.z.Y > cfg.holdH and (ln.p.Y - lineY) or (ln.yE - lineY)
+                            local isH = ln.z.Y > cfg.holdH
+                            local hd = isH and (ln.p.Y - lineY) or (ln.yE - lineY)
                             if hd >= lowerB and hd <= pdN then
-                                succ = true
+                                if isH or (not heldTail) or (ln.yE > heldTail + 30) then
+                                    succ = true
+                                end
                             end
                         end
                     end
@@ -651,4 +658,4 @@ task.spawn(function()
     end
 end)
 
-print("Autoplayer44 loaded - recycle-safe exclusions (lastPressed X/Y guards, used auto-clear) fix sustains after spam. Rejoin first to clear old versions")
+print("Autoplayer45 loaded - sustain early-release fix: the sustain's own head note no longer triggers the successor release (key holds through the tail). Rejoin first to clear old versions")
