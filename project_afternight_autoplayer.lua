@@ -19,6 +19,7 @@ local pressed = {}
 local downKind = {}
 local pressAddr = {}
 local holdUntil = {}
+local holdTail = {}
 local lastPressed = {}
 local pressX = {}
 local pressY = {}
@@ -83,6 +84,7 @@ local function releaseAll()
     end
     downKind = {}
     pressAddr = {}
+    holdTail = {}
     lastPressed = {}
     lastRel = {}
     pressX = {}
@@ -374,16 +376,23 @@ RunService.RenderStepped:Connect(function(dt)
                 local doRelease = false
                 if downKind[i] == "hold" then
                     local succ = false
-                    local heldTail = nil
+                    local liveTail = holdTail[i]
                     for _, ln in ipairs(laneNotes[i]) do
-                        if ln.addr == pressAddr[i] then heldTail = ln.p.Y + ln.z.Y end
+                        if ln.addr == pressAddr[i] then
+                            liveTail = ln.p.Y + ln.z.Y
+                            break
+                        end
+                    end
+                    if liveTail then
+                        holdUntil[i] = math.max(holdUntil[i] or 0, tick() + math.max(0, liveTail - lineY) / math.max(speed, 50) + 0.15)
                     end
                     for _, ln in ipairs(laneNotes[i]) do
                         if not ln.used and ln.addr ~= pressAddr[i] and ln.vy > 50 then
                             local isH = ln.z.Y > cfg.holdH
                             local hd = isH and (ln.p.Y - lineY) or (ln.yE - lineY)
                             if hd >= lowerB and hd <= pdN then
-                                if isH or (not heldTail) or (ln.yE > heldTail + 30) then
+                                local headY = isH and ln.p.Y or ln.yE
+                                if (not liveTail) or headY > liveTail + 30 then
                                     succ = true
                                 end
                             end
@@ -452,6 +461,7 @@ RunService.RenderStepped:Connect(function(dt)
                     pressY[i] = cand.c.Y
                     if candKind == "hold" then
                         holdUntil[i] = tick() + math.max(0, cand.p.Y + cand.z.Y - lineY) / math.max(cand.vy, 50) + 0.15
+                        holdTail[i] = cand.p.Y + cand.z.Y
                     end
                     if cand.addr then
                         local tr = noteTrack[cand.addr]
@@ -658,4 +668,4 @@ task.spawn(function()
     end
 end)
 
-print("Autoplayer45 loaded - sustain early-release fix: the sustain's own head note no longer triggers the successor release (key holds through the tail). Rejoin first to clear old versions")
+print("Autoplayer46 loaded - sustain end fix: chained pieces share the tail window, holdUntil tracks the live tail, releases only past the real end. Rejoin first to clear old versions")
