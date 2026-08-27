@@ -20,6 +20,10 @@ local downKind = {}
 local pressAddr = {}
 local holdUntil = {}
 local lastPressed = {}
+local pressX = {}
+local pressY = {}
+local lastPressedX = {}
+local lastPressedY = {}
 local lastRel = {}
 local beatToken = tostring(math.random(1000, 9999)) .. tostring(math.random(1000, 9999))
     local born = tick()
@@ -81,6 +85,10 @@ local function releaseAll()
     pressAddr = {}
     lastPressed = {}
     lastRel = {}
+    pressX = {}
+    pressY = {}
+    lastPressedX = {}
+    lastPressedY = {}
 end
 
 local function scan()
@@ -279,6 +287,8 @@ RunService.RenderStepped:Connect(function(dt)
                             if math.abs(c.X - sc[tk.lane].X) > cfg.maxX + 80 then
                                 tk.lane = bl
                                 tk.sway = 0
+                                tk.used = nil
+                                tk.unstable = nil
                             elseif bl ~= tk.lane then
                                 tk.sway = (tk.sway or 0) + 1
                                 if tk.sway > 5 then
@@ -291,6 +301,10 @@ RunService.RenderStepped:Connect(function(dt)
                         else
                             tk.lane = bl
                             tk.sway = 0
+                        end
+                        if tk.used and tk.lane and sline[tk.lane] and (tk.y - sline[tk.lane]) < -60 then
+                            tk.used = nil
+                            tk.unstable = nil
                         end
                     else
                         noteTrack[ad] = { y = c.Y, vy = speed, last = frameCnt, lane = bl, sway = 0, px = c.X }
@@ -336,10 +350,13 @@ RunService.RenderStepped:Connect(function(dt)
             if lastPressed[i] then
                 local found = false
                 local d = nil
+                local cX, cY = nil, nil
                 for _, ln in ipairs(laneNotes[i]) do
-                    if ln.addr == lastPressed[i] then found = true; d = ln.yE - lineY end
+                    if ln.addr == lastPressed[i] then found = true; d = ln.yE - lineY; cX = ln.c.X; cY = ln.c.Y end
                 end
-                if (not found) or d < lowerB or d > pressDist + cfg.slack then
+                if (not found) or d < lowerB or d > pressDist + cfg.slack
+                    or (lastPressedX[i] and cX and math.abs(cX - lastPressedX[i]) > 90)
+                    or (lastPressedY[i] and cY and (cY - lastPressedY[i]) > 150) then
                     lastPressed[i] = nil
                 end
             end
@@ -394,7 +411,11 @@ RunService.RenderStepped:Connect(function(dt)
                 if doRelease then
                     keyrelease(codeOf[key])
                     pressed[i] = false
-                    if pressAddr[i] then lastPressed[i] = pressAddr[i] end
+                    if pressAddr[i] then
+                        lastPressed[i] = pressAddr[i]
+                        lastPressedX[i] = pressX[i]
+                        lastPressedY[i] = pressY[i]
+                    end
                     downKind[i] = nil
                     pressAddr[i] = nil
                     lastRel[i] = frameCnt
@@ -420,6 +441,8 @@ RunService.RenderStepped:Connect(function(dt)
                     pressed[i] = true
                     downKind[i] = candKind
                     pressAddr[i] = cand.addr
+                    pressX[i] = cand.c.X
+                    pressY[i] = cand.c.Y
                     if candKind == "hold" then
                         holdUntil[i] = tick() + math.max(0, cand.p.Y + cand.z.Y - lineY) / math.max(cand.vy, 50) + 0.15
                     end
@@ -628,4 +651,4 @@ task.spawn(function()
     end
 end)
 
-print("Autoplayer43 loaded - sustain fix: holds release for a successor tap or hold (taps after sustains no longer blocked). Rejoin first to clear old versions")
+print("Autoplayer44 loaded - recycle-safe exclusions (lastPressed X/Y guards, used auto-clear) fix sustains after spam. Rejoin first to clear old versions")
