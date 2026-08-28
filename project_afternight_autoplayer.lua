@@ -225,7 +225,7 @@ RunService.RenderStepped:Connect(function(dt)
     frameCnt = frameCnt + 1
     dt = math.clamp(dt or 1 / 60, 1 / 240, 1 / 30)
     if not state.inSong or #state.strums == 0 then
-        if not cfg.enabled then releaseAll() end
+        if not cfg.enabled or not state.inSong then releaseAll() end
         overlay.Visible = false
         return
     end
@@ -381,8 +381,13 @@ RunService.RenderStepped:Connect(function(dt)
                     local ad = pressAddr[i]
                     local chainEnd = holdTail[i]
                     local stillThere = false
+                    local foundAny = false
                     for _, ln in ipairs(laneNotes[i]) do
-                        if ln.addr == ad then stillThere = true; chainEnd = ln.p.Y + ln.z.Y end
+                        if ln.addr == ad then
+                            stillThere = true
+                            foundAny = true
+                            chainEnd = ln.p.Y + ln.z.Y
+                        end
                     end
                     if not stillThere then
                         local best = nil
@@ -391,7 +396,10 @@ RunService.RenderStepped:Connect(function(dt)
                                 if not best or ln.p.Y < best.p.Y then best = ln end
                             end
                         end
-                        if best then chainEnd = best.p.Y + best.z.Y end
+                        if best then
+                            chainEnd = best.p.Y + best.z.Y
+                            foundAny = true
+                        end
                     end
                     if chainEnd then
                         local changed = true
@@ -401,10 +409,13 @@ RunService.RenderStepped:Connect(function(dt)
                                 if ln.z.Y > cfg.holdH and ln.p.Y <= chainEnd + 12 then
                                     local t = ln.p.Y + ln.z.Y
                                     if t > chainEnd then chainEnd = t; changed = true end
+                                    foundAny = true
                                 end
                             end
                         end
-                        holdUntil[i] = math.max(holdUntil[i] or 0, tick() + math.max(0, chainEnd - lineY) / math.max(speed, 50) + 0.15)
+                        if foundAny then
+                            holdUntil[i] = tick() + math.max(0, chainEnd - lineY) / math.max(speed, 50) + 0.15
+                        end
                     end
                     local tailPassed = chainEnd and (chainEnd - lineY <= -cfg.tailMargin)
                     local expired = holdUntil[i] and tick() > holdUntil[i]
@@ -720,4 +731,4 @@ task.spawn(function()
     end
 end)
 
-print("Autoplayer54 loaded - tap->hold upgrade (no key-up gap on sustains) + successor release gated past the chain tail. Rejoin first to clear old versions")
+print("Autoplayer55 loaded - stuck-key fix: holdUntil only extends while a live body piece exists, keys released on song end. Rejoin first to clear old versions")
