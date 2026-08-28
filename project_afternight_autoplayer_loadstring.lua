@@ -415,7 +415,10 @@ RunService.RenderStepped:Connect(function(dt)
                             if ln.z.Y <= cfg.holdH and not ln.used and ln.addr ~= ad and ln.vy > 50 then
                                 local d = ln.yE - lineY
                                 local pdN2 = math.clamp(ln.vy * (cfg.ms + cfg.comp) / 1000, 6, 250)
-                                if d >= lowerB and d <= pdN2 then tapSucc = true; break end
+                                if d >= lowerB and d <= pdN2 and ((not chainEnd) or ln.p.Y > chainEnd + 30) then
+                                    tapSucc = true
+                                    break
+                                end
                             end
                         end
                     end
@@ -423,26 +426,44 @@ RunService.RenderStepped:Connect(function(dt)
                     if cfg.debug and doRelease then print(("REL-HOLD lane=%d key=%s tail=%s exp=%s tap=%s"):format(i, key, tostring(tailPassed), tostring(expired), tostring(tapSucc))) end
                 else
                     local ad = pressAddr[i]
-                    if ad and frameCnt > (pressFrame[i] or 0) + 1 then
-                        doRelease = true
-                    end
-                    if not doRelease then
-                        local heldD = nil
-                        local stillThere = false
-                        for _, ln in ipairs(laneNotes[i]) do
-                            if ln.addr == ad then stillThere = true; heldD = ln.c.Y - lineY end
+                    local upgraded = false
+                    for _, ln in ipairs(laneNotes[i]) do
+                        if ln.z.Y > cfg.holdH and not ln.used and math.abs(ln.c.X - pressX[i]) < 80 then
+                            local headD = (ln.yE - ln.z.Y / 2) - lineY
+                            if headD > -40 and headD < 150 then
+                                downKind[i] = "hold"
+                                pressAddr[i] = ln.addr
+                                holdTail[i] = ln.p.Y + ln.z.Y
+                                holdUntil[i] = tick() + math.max(0, holdTail[i] - lineY) / math.max(ln.vy, 50) + 0.15
+                                local trB = noteTrack[ln.addr]
+                                if trB then trB.used = true end
+                                upgraded = true
+                                break
+                            end
                         end
-                        if not stillThere then
+                    end
+                    if not upgraded then
+                        if ad and frameCnt > (pressFrame[i] or 0) + 1 then
                             doRelease = true
-                        elseif heldD and (heldD < -15 or heldD > pressDist + cfg.slack) then
-                            doRelease = true
-                        else
+                        end
+                        if not doRelease then
+                            local heldD = nil
+                            local stillThere = false
                             for _, ln in ipairs(laneNotes[i]) do
-                                if ln.addr ~= ad and ln.vy > 50 then
-                                    local d = (ln.z.Y > cfg.holdH and (ln.yE - ln.z.Y / 2) or ln.yE) - lineY
-                                    if d <= pressDist + math.max(40, speed / 60) then
-                                        doRelease = true
-                                        break
+                                if ln.addr == ad then stillThere = true; heldD = ln.c.Y - lineY end
+                            end
+                            if not stillThere then
+                                doRelease = true
+                            elseif heldD and (heldD < -15 or heldD > pressDist + cfg.slack) then
+                                doRelease = true
+                            else
+                                for _, ln in ipairs(laneNotes[i]) do
+                                    if ln.addr ~= ad and ln.vy > 50 then
+                                        local d = (ln.z.Y > cfg.holdH and (ln.yE - ln.z.Y / 2) or ln.yE) - lineY
+                                        if d <= pressDist + math.max(40, speed / 60) then
+                                            doRelease = true
+                                            break
+                                        end
                                     end
                                 end
                             end
@@ -700,5 +721,5 @@ task.spawn(function()
     end
 end)
 
-print("Autoplayer53 loaded - head-mark window tightened (X<80 Y<50) to avoid marking a real tap near the sustain as used. Rejoin first to clear old versions")
+print("Autoplayer54 loaded - tap->hold upgrade (no key-up gap on sustains) + successor release gated past the chain tail. Rejoin first to clear old versions")
 ]==])()
