@@ -418,6 +418,12 @@ RunService.RenderStepped:Connect(function(dt)
                             holdUntil[i] = tick() + math.max(0, chainEnd - lineY) / math.max(speed, 50) + 0.15
                         end
                     end
+                    for _, hn in ipairs(laneNotes[i]) do
+                        if hn.z.Y <= cfg.holdH and math.abs(hn.c.X - (pressX[i] or 0)) < 80 and (not chainEnd or hn.p.Y <= chainEnd) and (hn.yE - lineY) > -60 then
+                            local trH = noteTrack[hn.addr]
+                            if trH then trH.used = true end
+                        end
+                    end
                     local tailPassed = chainEnd and (chainEnd - lineY <= -cfg.tailMargin)
                     local expired = holdUntil[i] and tick() > holdUntil[i]
                     local tapSucc = false
@@ -439,7 +445,7 @@ RunService.RenderStepped:Connect(function(dt)
                     local ad = pressAddr[i]
                     local upgraded = false
                     for _, ln in ipairs(laneNotes[i]) do
-                        if ln.z.Y > cfg.holdH and not ln.used and math.abs(ln.c.X - pressX[i]) < 80 then
+                        if ln.z.Y > cfg.holdH and not ln.used and math.abs(ln.c.X - pressX[i]) < 80 and frameCnt <= (pressFrame[i] or 0) + 2 then
                             local headD = (ln.yE - ln.z.Y / 2) - lineY
                             if headD > -40 and headD < 150 then
                                 downKind[i] = "hold"
@@ -521,7 +527,7 @@ RunService.RenderStepped:Connect(function(dt)
                         holdUntil[i] = tick() + math.max(0, cand.p.Y + cand.z.Y - lineY) / math.max(cand.vy, 50) + 0.15
                         holdTail[i] = cand.p.Y + cand.z.Y
                         for _, hn in ipairs(laneNotes[i]) do
-                            if hn.z.Y <= cfg.holdH and math.abs(hn.c.X - cand.c.X) < 80 and math.abs(hn.p.Y - cand.p.Y) < 50 then
+                            if hn.z.Y <= cfg.holdH and math.abs(hn.c.X - cand.c.X) < 80 and hn.p.Y >= cand.p.Y - 40 and hn.p.Y <= cand.p.Y + cand.z.Y then
                                 local trH = noteTrack[hn.addr]
                                 if trH then trH.used = true end
                             end
@@ -732,5 +738,5 @@ task.spawn(function()
     end
 end)
 
-print("Autoplayer55 loaded - stuck-key fix: holdUntil only extends while a live body piece exists, keys released on song end. Rejoin first to clear old versions")
+print("Autoplayer56 loaded - phantom-head fix: sustain heads marked used across the whole chain span every frame while held, upgrade only within 2 frames of the tap press. Rejoin first to clear old versions")
 ]==])()
