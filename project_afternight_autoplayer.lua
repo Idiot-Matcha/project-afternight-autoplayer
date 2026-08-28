@@ -510,7 +510,11 @@ RunService.RenderStepped:Connect(function(dt)
                         local d = isHold and ((ln.yE - ln.z.Y / 2) - lineY) or (ln.yE - lineY)
                         local pdN = math.clamp(ln.vy * (cfg.ms + cfg.comp) / 1000, 6, 250)
                         if d >= lowerB and d <= pdN and d < candD then
-                            cand, candD, candKind = ln, d, isHold and "hold" or "tap"
+                            if d < -35 and lastRel[i] and frameCnt <= lastRel[i] + 5 then
+                                -- queue-delayed press past the line (same-key 1-frame gate): skip, next frame re-evaluates
+                            else
+                                cand, candD, candKind = ln, d, isHold and "hold" or "tap"
+                            end
                         end
                     end
                 end
@@ -737,4 +741,4 @@ task.spawn(function()
     end
 end)
 
-print("Autoplayer56 loaded - phantom-head fix: sustain heads marked used across the whole chain span every frame while held, upgrade only within 2 frames of the tap press. Rejoin first to clear old versions")
+print("Autoplayer57 loaded - queue-delay guard: presses delayed past -35px by the 1-frame input gate are skipped (engine ignores late presses anyway). Rejoin first to clear old versions")
