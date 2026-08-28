@@ -380,16 +380,34 @@ RunService.RenderStepped:Connect(function(dt)
                 local doRelease = false
                 if downKind[i] == "hold" then
                     local ad = pressAddr[i]
+                    local chainEnd = holdTail[i]
                     local stillThere = false
-                    local liveTail = nil
                     for _, ln in ipairs(laneNotes[i]) do
-                        if ln.addr == ad then stillThere = true; liveTail = ln.p.Y + ln.z.Y end
+                        if ln.addr == ad then stillThere = true; chainEnd = ln.p.Y + ln.z.Y end
                     end
-                    if stillThere and liveTail then
-                        holdUntil[i] = tick() + math.max(0, liveTail - lineY) / math.max(speed, 50) + 0.15
-                        holdTail[i] = liveTail
+                    if not stillThere then
+                        local best = nil
+                        for _, ln in ipairs(laneNotes[i]) do
+                            if ln.z.Y > cfg.holdH and math.abs(ln.c.X - pressX[i]) < 100 then
+                                if not best or ln.p.Y < best.p.Y then best = ln end
+                            end
+                        end
+                        if best then chainEnd = best.p.Y + best.z.Y end
                     end
-                    local tailPassed = liveTail and (liveTail - lineY <= -cfg.tailMargin)
+                    if chainEnd then
+                        local changed = true
+                        while changed do
+                            changed = false
+                            for _, ln in ipairs(laneNotes[i]) do
+                                if ln.z.Y > cfg.holdH and ln.p.Y <= chainEnd + 12 then
+                                    local t = ln.p.Y + ln.z.Y
+                                    if t > chainEnd then chainEnd = t; changed = true end
+                                end
+                            end
+                        end
+                        holdUntil[i] = math.max(holdUntil[i] or 0, tick() + math.max(0, chainEnd - lineY) / math.max(speed, 50) + 0.15)
+                    end
+                    local tailPassed = chainEnd and (chainEnd - lineY <= -cfg.tailMargin)
                     local expired = holdUntil[i] and tick() > holdUntil[i]
                     local tapSucc = false
                     if not tailPassed and not expired then
@@ -470,6 +488,12 @@ RunService.RenderStepped:Connect(function(dt)
                     if candKind == "hold" then
                         holdUntil[i] = tick() + math.max(0, cand.p.Y + cand.z.Y - lineY) / math.max(cand.vy, 50) + 0.15
                         holdTail[i] = cand.p.Y + cand.z.Y
+                        for _, hn in ipairs(laneNotes[i]) do
+                            if hn.z.Y <= cfg.holdH and math.abs(hn.c.X - cand.c.X) < 100 and math.abs(hn.p.Y - cand.p.Y) < 100 then
+                                local trH = noteTrack[hn.addr]
+                                if trH then trH.used = true end
+                            end
+                        end
                     end
                     if cand.addr then
                         local tr = noteTrack[cand.addr]
@@ -676,5 +700,5 @@ task.spawn(function()
     end
 end)
 
-print("Autoplayer51 loaded - sustain tail fix: holds keep the key through the body, release when the tail passes the line (tap successors still break it free). Rejoin first to clear old versions")
+print("Autoplayer52 loaded - sustain chain tail: body segments extend the hold until the LAST piece passes (head notes marked used so they can't cut it early). Rejoin first to clear old versions")
 ]==])()
