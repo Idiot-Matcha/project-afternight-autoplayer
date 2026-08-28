@@ -488,7 +488,7 @@ RunService.RenderStepped:Connect(function(dt)
                         holdUntil[i] = tick() + math.max(0, cand.p.Y + cand.z.Y - lineY) / math.max(cand.vy, 50) + 0.15
                         holdTail[i] = cand.p.Y + cand.z.Y
                         for _, hn in ipairs(laneNotes[i]) do
-                            if hn.z.Y <= cfg.holdH and math.abs(hn.c.X - cand.c.X) < 100 and math.abs(hn.p.Y - cand.p.Y) < 100 then
+                            if hn.z.Y <= cfg.holdH and math.abs(hn.c.X - cand.c.X) < 80 and math.abs(hn.p.Y - cand.p.Y) < 50 then
                                 local trH = noteTrack[hn.addr]
                                 if trH then trH.used = true end
                             end
@@ -699,4 +699,4 @@ task.spawn(function()
     end
 end)
 
-print("Autoplayer52 loaded - sustain chain tail: body segments extend the hold until the LAST piece passes (head notes marked used so they can't cut it early). Rejoin first to clear old versions")
+print("Autoplayer53 loaded - head-mark window tightened (X<80 Y<50) to avoid marking a real tap near the sustain as used. Rejoin first to clear old versions")
